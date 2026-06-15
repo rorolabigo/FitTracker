@@ -782,6 +782,74 @@ document.getElementById('btn-export').addEventListener('click', () => {
   showToast('Données exportées ✓');
 });
 
+// Import JSON
+document.getElementById('btn-import').addEventListener('click', () => {
+  document.getElementById('import-file-input').value = '';
+  document.getElementById('import-file-input').click();
+});
+
+document.getElementById('import-file-input').addEventListener('change', function() {
+  const file = this.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    let data;
+    try {
+      data = JSON.parse(e.target.result);
+    } catch {
+      showToast('❌ Fichier invalide — ce n\'est pas un JSON FitTracker');
+      return;
+    }
+
+    // Validation minimale de la structure
+    if (!data.exercises || !Array.isArray(data.exercises) ||
+        !data.sessions  || !Array.isArray(data.sessions)  ||
+        !data.weights   || !Array.isArray(data.weights)) {
+      showToast('❌ Fichier non reconnu — structure incorrecte');
+      return;
+    }
+
+    const nbSessions = data.sessions.length;
+    const nbPesees   = data.weights.length;
+    const exportDate = data.exportDate
+      ? new Date(data.exportDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+      : 'date inconnue';
+
+    const msg =
+      `Restaurer cette sauvegarde ?\n\n` +
+      `📅 Exportée le : ${exportDate}\n` +
+      `💪 ${nbSessions} séance${nbSessions > 1 ? 's' : ''}\n` +
+      `⚖️ ${nbPesees} pesée${nbPesees > 1 ? 's' : ''}\n\n` +
+      `⚠️ Tes données actuelles seront remplacées.`;
+
+    if (!confirm(msg)) return;
+
+    // Restauration
+    exercises = data.exercises;
+    sessions  = data.sessions;
+    weights   = data.weights;
+
+    save('ft_exercises',  exercises);
+    save('ft_weights_v2', sessions);
+    save('ft_sessions',   sessions);
+    save('ft_weights',    weights);
+
+    // Restaurer les préférences si présentes
+    if (data.prefs && typeof data.prefs === 'object') {
+      Object.assign(prefs, data.prefs);
+      savePrefs();
+      applyTheme();
+      renderSettings();
+    }
+
+    prefillToday();
+    showToast(`✅ ${nbSessions} séance${nbSessions > 1 ? 's' : ''} restaurée${nbSessions > 1 ? 's' : ''} !`);
+  };
+
+  reader.readAsText(file);
+});
+
 // Réinitialisation
 document.getElementById('btn-reset').addEventListener('click', () => {
   if (!confirm('Supprimer TOUTES les données ? Cette action est irréversible.')) return;
