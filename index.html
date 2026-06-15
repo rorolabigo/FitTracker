@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#534AB7">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="FitTracker">
+  <title>FitTracker</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════ ÉCRAN SÉANCE ══ -->
+<div id="screen-today" class="screen active">
+  <header class="app-header">
+    <div>
+      <div class="header-title" id="today-greeting">Bonjour 👋</div>
+      <div class="header-sub" id="today-date">—</div>
+    </div>
+    <div class="streak-badge" id="streak-badge">🔥 0 jour</div>
+  </header>
+
+  <div class="scroll-area">
+    <div id="exercise-list">
+      <!-- généré par JS -->
+    </div>
+
+    <button class="add-ex-btn" id="add-ex-btn">
+      <span class="icon">＋</span> Ajouter un exercice
+    </button>
+
+    <button class="save-btn" id="save-btn">Enregistrer la séance</button>
+    <div class="save-hint" id="save-hint"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ ÉCRAN HISTORIQUE ══ -->
+<div id="screen-history" class="screen">
+  <header class="app-header">
+    <div class="header-title">Historique</div>
+  </header>
+  <div class="scroll-area" id="history-list">
+    <!-- généré par JS -->
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ ÉCRAN STATS ══ -->
+<div id="screen-stats" class="screen">
+  <header class="app-header">
+    <div class="header-title">Statistiques</div>
+  </header>
+  <div class="scroll-area">
+    <div class="section-label">Records personnels</div>
+    <div id="pr-grid" class="stat-grid"></div>
+
+    <div class="section-label">7 derniers jours</div>
+    <div id="chart-container"></div>
+
+    <div class="section-label">Totaux cette semaine</div>
+    <div id="weekly-totals" class="stat-grid"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ ÉCRAN POIDS ══ -->
+<div id="screen-weight" class="screen">
+  <header class="app-header">
+    <div class="header-title">Poids</div>
+  </header>
+  <div class="scroll-area">
+    <button class="save-btn" id="weight-add-btn">+ Enregistrer ma pesée du mois</button>
+
+    <div class="section-label" style="margin-top:20px">Historique des pesées</div>
+    <div id="weight-list"></div>
+
+    <div class="section-label">Évolution</div>
+    <div id="weight-chart"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ BARRE DE NAV ══ -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" data-screen="today">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+    <span>Séance</span>
+  </button>
+  <button class="nav-btn" data-screen="history">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    <span>Historique</span>
+  </button>
+  <button class="nav-btn" data-screen="stats">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    <span>Stats</span>
+  </button>
+  <button class="nav-btn" data-screen="weight">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+    <span>Poids</span>
+  </button>
+</nav>
+
+<!-- ═══════════════════════════════════════════ MODALES ══ -->
+
+<!-- Modale : ajouter exercice -->
+<div class="modal-overlay" id="modal-add-ex">
+  <div class="modal">
+    <div class="modal-title">Nouvel exercice</div>
+    <label class="field-label">Nom</label>
+    <input type="text" id="new-ex-name" class="field-input" placeholder="ex. Tractions, Squats…" maxlength="30">
+    <label class="field-label">Unité</label>
+    <div class="unit-picker" id="unit-picker">
+      <button class="unit-btn active" data-unit="reps">Répétitions</button>
+      <button class="unit-btn" data-unit="sec">Secondes</button>
+      <button class="unit-btn" data-unit="min">Minutes</button>
+    </div>
+    <label class="field-label">Objectif quotidien</label>
+    <input type="number" id="new-ex-goal" class="field-input" placeholder="ex. 50" min="1" max="9999">
+    <div class="modal-actions">
+      <button class="modal-btn cancel" id="cancel-add-ex">Annuler</button>
+      <button class="modal-btn confirm" id="confirm-add-ex">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modale : modifier exercice -->
+<div class="modal-overlay" id="modal-edit-ex">
+  <div class="modal">
+    <div class="modal-title">Modifier l'exercice</div>
+    <label class="field-label">Nom</label>
+    <input type="text" id="edit-ex-name" class="field-input" maxlength="30">
+    <label class="field-label">Objectif quotidien</label>
+    <input type="number" id="edit-ex-goal" class="field-input" min="1" max="9999">
+    <div class="modal-actions">
+      <button class="modal-btn cancel" id="cancel-edit-ex">Annuler</button>
+      <button class="modal-btn danger" id="delete-ex">Supprimer</button>
+      <button class="modal-btn confirm" id="confirm-edit-ex">Sauvegarder</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modale : pesée -->
+<div class="modal-overlay" id="modal-weight">
+  <div class="modal">
+    <div class="modal-title">Nouvelle pesée</div>
+    <label class="field-label">Poids (kg)</label>
+    <input type="number" id="weight-input" class="field-input" placeholder="ex. 75.5" step="0.1" min="30" max="300">
+    <label class="field-label" style="margin-top:12px">Date (optionnel)</label>
+    <input type="date" id="weight-date-input" class="field-input">
+    <div class="modal-actions">
+      <button class="modal-btn cancel" id="cancel-weight">Annuler</button>
+      <button class="modal-btn confirm" id="confirm-weight">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modale : détail séance historique -->
+<div class="modal-overlay" id="modal-session-detail">
+  <div class="modal">
+    <div class="modal-title" id="detail-title">Séance du —</div>
+    <div id="detail-content"></div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" id="close-detail">Fermer</button>
+      <button class="modal-btn danger" id="delete-session">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
