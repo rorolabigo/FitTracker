@@ -1,9 +1,10 @@
 /* ══════════════════════════════════════════════════════════
-   FitTracker — app.js
+   FitTracker — app.js v1.2
    Données stockées en localStorage :
      ft_exercises  : liste des exercices configurés
      ft_sessions   : historique des séances (tableau d'objets)
      ft_weights    : historique des pesées (tableau d'objets)
+     ft_prefs      : préférences utilisateur
    ══════════════════════════════════════════════════════════ */
 
 'use strict';
@@ -19,7 +20,7 @@ const DEFAULT_EXERCISES = [
 let exercises   = load('ft_exercises') || DEFAULT_EXERCISES;
 let sessions    = load('ft_weights_v2') || load('ft_sessions') || [];
 let weights     = load('ft_weights')   || [];
-let todayValues = {};         // { exId: count }
+let todayValues = {};
 let editingExId = null;
 let detailSessionIdx = null;
 let selectedUnit = 'reps';
@@ -37,32 +38,51 @@ function load(key) {
 function save(key, val) {
   localStorage.setItem(key, JSON.stringify(val));
 }
-
 function genId() {
   return 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2,5);
 }
 
-// ── Date helpers ──────────────────────────────────────────
-function todayKey() {
-  return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+// ── Retour haptique ───────────────────────────────────────
+function haptic(duration = 8) {
+  if (navigator.vibrate) navigator.vibrate(duration);
 }
 
+// ── Modale de confirmation générique ─────────────────────
+function showConfirm(title, msg, okLabel, onOk, danger = true) {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-msg').textContent   = msg;
+  const okBtn = document.getElementById('confirm-ok');
+  okBtn.textContent = okLabel;
+  okBtn.className   = 'modal-btn ' + (danger ? 'danger' : 'confirm');
+  openModal('modal-confirm');
+  // Remplacer le listener précédent
+  const fresh = okBtn.cloneNode(true);
+  okBtn.parentNode.replaceChild(fresh, okBtn);
+  fresh.textContent = okLabel;
+  fresh.className   = 'modal-btn ' + (danger ? 'danger' : 'confirm');
+  fresh.addEventListener('click', () => {
+    closeModal('modal-confirm');
+    onOk();
+  });
+}
+document.getElementById('confirm-cancel').addEventListener('click', () => closeModal('modal-confirm'));
+
+// ── Date helpers ──────────────────────────────────────────
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
 function fmtDate(isoDate) {
   const d = new Date(isoDate + 'T12:00:00');
   return d.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
 }
-
 function fmtDateShort(isoDate) {
   const d = new Date(isoDate + 'T12:00:00');
   return d.toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' });
 }
-
 function fmtMonth(isoDate) {
   const d = new Date(isoDate + 'T12:00:00');
   return d.toLocaleDateString('fr-FR', { month:'long', year:'numeric' });
 }
-
-// Derniers N jours (YYYY-MM-DD)
 function lastNDays(n) {
   const days = [];
   for (let i = n - 1; i >= 0; i--) {
@@ -87,27 +107,41 @@ function computePRs() {
 // ── Streak ────────────────────────────────────────────────
 function computeStreak() {
   const keys = [...new Set(sessions.map(s => s.date))].sort().reverse();
-  if (!keys.length) return 0;
-  let streak = 0;
+  if (!keys.length) return { current: 0, best: 0 };
+
+  // Streak actuelle
+  let current = 0;
   const today = todayKey();
   let cursor = today;
   for (const k of keys) {
     if (k === cursor) {
-      streak++;
+      current++;
       const d = new Date(cursor + 'T12:00:00');
       d.setDate(d.getDate() - 1);
       cursor = d.toISOString().slice(0, 10);
     } else if (k < cursor) break;
   }
-  return streak;
+
+  // Meilleur streak
+  let best = 0;
+  let streak = 1;
+  const sorted = [...keys].sort();
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = new Date(sorted[i-1] + 'T12:00:00');
+    const curr = new Date(sorted[i]   + 'T12:00:00');
+    const diff = (curr - prev) / 86400000;
+    if (diff === 1) { streak++; best = Math.max(best, streak); }
+    else streak = 1;
+  }
+  best = Math.max(best, current, sorted.length ? 1 : 0);
+
+  return { current, best };
 }
 
 // ── Pré-remplir today depuis la dernière séance ───────────
 function prefillToday() {
   todayValues = {};
   exercises.forEach(ex => { todayValues[ex.id] = 0; });
-
-  // Si on a déjà sauvegardé today, on reprend ces valeurs
   const todaySessions = sessions.filter(s => s.date === todayKey());
   if (todaySessions.length) {
     const last = todaySessions[todaySessions.length - 1];
@@ -117,19 +151,22 @@ function prefillToday() {
 
 // ── Rendu : écran Séance ──────────────────────────────────
 function renderToday() {
-  const prs = computePRs();
+  const prs    = computePRs();
   const streak = computeStreak();
 
-  // Header
-  const h = new Date().getHours();
-  const greeting = h < 12 ? 'Bonjour 👋' : h < 18 ? 'Bon après-midi 💪' : 'Bonsoir 🌙';
-  document.getElementById('today-greeting').textContent = greeting;
+  updateGreeting();
   document.getElementById('today-date').textContent = fmtDate(todayKey());
-  document.getElementById('streak-badge').textContent = `🔥 ${streak} jour${streak > 1 ? 's' : ''}`;
+  const badge = document.getElementById('streak-badge');
+  badge.textContent = `🔥 ${streak.current} jour${streak.current > 1 ? 's' : ''}`;
+  badge.title = `Meilleur streak : ${streak.best} jour${streak.best > 1 ? 's' : ''}`;
 
-  // Exercices
   const list = document.getElementById('exercise-list');
   list.innerHTML = '';
+
+  if (!exercises.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">🏋️</div>Aucun exercice configuré.<br>Ajoute ton premier exercice !</div>`;
+    return;
+  }
 
   exercises.forEach(ex => {
     const val   = todayValues[ex.id] || 0;
@@ -169,15 +206,14 @@ function renderToday() {
         <div class="progress-fill${isDone ? ' done' : ''}" id="bar-${ex.id}" style="width:${pct}%"></div>
       </div>
       <div class="ex-goal-label">Objectif : ${goal} ${ex.unit}${isDone ? ' ✓' : ` — ${pct}%`}</div>
+      <button class="rest-btn" data-id="${ex.id}" title="Timer de repos">⏱ Repos</button>
     `;
 
     list.appendChild(card);
 
-    // Flash PR
     if (isPR) card.querySelector('.ex-pr-badge')?.classList.add('pr-flash');
   });
 
-  // Hint
   const hasSomething = exercises.some(ex => (todayValues[ex.id] || 0) > 0);
   const todaySaved   = sessions.some(s => s.date === todayKey());
   document.getElementById('save-hint').textContent =
@@ -187,7 +223,7 @@ function renderToday() {
 
 // ── Rendu : écran Historique ──────────────────────────────
 function renderHistory() {
-  const prs = computePRs();
+  const prs  = computePRs();
   const list = document.getElementById('history-list');
   list.innerHTML = '';
 
@@ -196,7 +232,6 @@ function renderHistory() {
     return;
   }
 
-  // Grouper par date (plus récent en premier)
   const byDate = {};
   sessions.forEach((s, idx) => {
     if (!byDate[s.date]) byDate[s.date] = [];
@@ -237,31 +272,35 @@ function renderStats() {
   const prGrid = document.getElementById('pr-grid');
   prGrid.innerHTML = '';
 
-  exercises.forEach(ex => {
-    const pr = prs[ex.id] || 0;
-    const div = document.createElement('div');
-    div.className = 'stat-card';
-    div.innerHTML = `
-      <div class="stat-card-label">${esc(ex.name)}</div>
-      <div class="stat-card-value">${pr || '—'}</div>
-      <div class="stat-card-sub">${pr ? ex.unit + ' · record' : 'Pas encore de séance'}</div>
-    `;
-    prGrid.appendChild(div);
-  });
+  if (!exercises.length) {
+    prGrid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🏆</div>Commence ta première séance<br>pour voir tes records ici !</div>`;
+  } else {
+    exercises.forEach(ex => {
+      const pr = prs[ex.id] || 0;
+      const div = document.createElement('div');
+      div.className = 'stat-card';
+      div.innerHTML = `
+        <div class="stat-card-label">${esc(ex.name)}</div>
+        <div class="stat-card-value">${pr || '—'}</div>
+        <div class="stat-card-sub">${pr ? ex.unit + ' · record' : 'Pas encore de séance'}</div>
+      `;
+      prGrid.appendChild(div);
+    });
+  }
 
-  // Graphique 7 jours (premier exercice)
+  // Graphique 7 jours
   const chartContainer = document.getElementById('chart-container');
   chartContainer.innerHTML = '';
 
   if (exercises.length) {
-    const ex = exercises[0];
+    const ex   = exercises[0];
     const days = lastNDays(7);
     const vals = days.map(d => {
       const s = sessions.filter(s => s.date === d).pop();
       if (!s) return 0;
       return (s.data.find(e => e.id === ex.id) || {}).count || 0;
     });
-    const max = Math.max(...vals, 1);
+    const max      = Math.max(...vals, 1);
     const dayNames = ['D','L','M','M','J','V','S'];
 
     const wrap = document.createElement('div');
@@ -273,8 +312,8 @@ function renderStats() {
 
     days.forEach((d, i) => {
       const isToday = d === todayKey();
-      const pct = vals[i] / max;
-      const h = Math.max(pct * 70, vals[i] > 0 ? 6 : 3);
+      const pct  = vals[i] / max;
+      const h    = Math.max(pct * 70, vals[i] > 0 ? 6 : 3);
       const dayName = dayNames[new Date(d + 'T12:00:00').getDay()];
 
       const col = document.createElement('div');
@@ -295,7 +334,7 @@ function renderStats() {
   // Totaux semaine
   const weekGrid = document.getElementById('weekly-totals');
   weekGrid.innerHTML = '';
-  const week = lastNDays(7);
+  const week     = lastNDays(7);
   const prevWeek = Array.from({length:7}, (_,i) => {
     const d = new Date(); d.setDate(d.getDate() - 14 + i);
     return d.toISOString().slice(0,10);
@@ -311,7 +350,7 @@ function renderStats() {
       return acc + ((s?.data.find(e => e.id === ex.id) || {}).count || 0);
     }, 0);
     const diff = total - prevTotal;
-    const div = document.createElement('div');
+    const div  = document.createElement('div');
     div.className = 'stat-card';
     div.innerHTML = `
       <div class="stat-card-label">${esc(ex.name)}</div>
@@ -320,6 +359,21 @@ function renderStats() {
     `;
     weekGrid.appendChild(div);
   });
+
+  // Streaks
+  const streakStats = document.getElementById('streak-stats');
+  streakStats.innerHTML = '';
+  const { current, best } = computeStreak();
+
+  const s1 = document.createElement('div');
+  s1.className = 'stat-card';
+  s1.innerHTML = `<div class="stat-card-label">Streak actuelle</div><div class="stat-card-value">🔥 ${current}</div><div class="stat-card-sub">jour${current > 1 ? 's' : ''} consécutif${current > 1 ? 's' : ''}</div>`;
+  streakStats.appendChild(s1);
+
+  const s2 = document.createElement('div');
+  s2.className = 'stat-card';
+  s2.innerHTML = `<div class="stat-card-label">Meilleur streak</div><div class="stat-card-value">🏅 ${best}</div><div class="stat-card-sub">jour${best > 1 ? 's' : ''} record</div>`;
+  streakStats.appendChild(s2);
 }
 
 // ── Rendu : écran Poids ───────────────────────────────────
@@ -335,7 +389,7 @@ function renderWeight() {
 
   const sorted = [...weights].sort((a,b) => a.date.localeCompare(b.date));
   sorted.reverse().forEach((w, i) => {
-    const prev = sorted.find(p => p.date < w.date);
+    const prev  = sorted.find(p => p.date < w.date);
     const delta = prev ? w.weight - prev.weight : null;
     const isLatest = i === 0;
 
@@ -360,14 +414,13 @@ function renderWeight() {
 function renderWeightChart() {
   const el = document.getElementById('weight-chart');
   el.innerHTML = '';
-
   if (weights.length < 2) return;
 
   const sorted = [...weights].sort((a,b) => a.date.localeCompare(b.date));
-  const vals = sorted.map(w => w.weight);
-  const min = Math.min(...vals) - 1;
-  const max = Math.max(...vals) + 1;
-  const range = max - min;
+  const vals   = sorted.map(w => w.weight);
+  const min    = Math.min(...vals) - 1;
+  const max    = Math.max(...vals) + 1;
+  const range  = max - min;
   const W = 300, H = 90, PAD = 16;
 
   const points = sorted.map((w, i) => {
@@ -375,8 +428,6 @@ function renderWeightChart() {
     const y = PAD + (1 - (w.weight - min) / range) * (H - PAD * 2);
     return { x, y, w };
   });
-
-  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
 
   const svg = `
     <svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">
@@ -387,7 +438,6 @@ function renderWeightChart() {
       <text x="${points[points.length-1].x}" y="${H - 2}" text-anchor="middle" font-size="9" fill="var(--text-muted)">${fmtDateShort(sorted[sorted.length-1].date).slice(0,7)}</text>
     </svg>
   `;
-
   el.innerHTML = `<div class="weight-chart-svg-wrap">${svg}</div>`;
 }
 
@@ -401,10 +451,11 @@ function showScreen(name) {
   document.querySelector(`.nav-btn[data-screen="${name}"]`).classList.add('active');
   currentScreen = name;
 
-  if (name === 'history') renderHistory();
-  if (name === 'stats')   renderStats();
-  if (name === 'weight')  renderWeight();
-  if (name === 'today')   renderToday();
+  if (name === 'history')  renderHistory();
+  if (name === 'stats')    renderStats();
+  if (name === 'weight')   renderWeight();
+  if (name === 'today')    renderToday();
+  if (name === 'settings') renderSettings();
 }
 
 // ── Toast ─────────────────────────────────────────────────
@@ -426,10 +477,60 @@ function esc(s) {
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
+// ── Timer de repos ────────────────────────────────────────
+let restInterval  = null;
+let restRemaining = 0;
+let restTotal     = 0;
+
+function startRestTimer(seconds) {
+  clearInterval(restInterval);
+  restRemaining = seconds;
+  restTotal     = seconds;
+
+  const timerEl = document.getElementById('rest-timer');
+  const countEl = document.getElementById('rest-timer-count');
+  const barEl   = document.getElementById('rest-timer-bar');
+
+  timerEl.classList.remove('hidden');
+  haptic(15);
+
+  function tick() {
+    countEl.textContent = restRemaining;
+    barEl.style.width   = (restRemaining / restTotal * 100) + '%';
+
+    if (restRemaining <= 0) {
+      clearInterval(restInterval);
+      timerEl.classList.add('hidden');
+      showToast('⏱ Repos terminé — c\'est reparti !');
+      haptic(200);
+      return;
+    }
+    restRemaining--;
+  }
+
+  tick();
+  restInterval = setInterval(tick, 1000);
+}
+
+document.getElementById('rest-timer-skip').addEventListener('click', () => {
+  clearInterval(restInterval);
+  document.getElementById('rest-timer').classList.add('hidden');
+  haptic(10);
+});
+
+// Délégation : bouton repos dans les cards
+document.getElementById('exercise-list').addEventListener('click', e => {
+  const btn = e.target.closest('.rest-btn');
+  if (!btn) return;
+  haptic(10);
+  startRestTimer(prefs.restDuration || 60);
+});
+
 // ── Événements : boutons +/− séance ──────────────────────
 document.getElementById('exercise-list').addEventListener('click', e => {
   const btn = e.target.closest('[data-delta]');
   if (!btn) return;
+  haptic(8);
   const id    = btn.dataset.id;
   const delta = parseInt(btn.dataset.delta, 10);
   todayValues[id] = Math.max(0, (todayValues[id] || 0) + delta);
@@ -440,11 +541,10 @@ document.getElementById('exercise-list').addEventListener('click', e => {
   const pct  = Math.min(100, Math.round(todayValues[id] / goal * 100));
   const bar  = document.getElementById('bar-' + id);
   bar.style.width = pct + '%';
-  bar.className = 'progress-fill' + (todayValues[id] >= goal ? ' done' : '');
+  bar.className   = 'progress-fill' + (todayValues[id] >= goal ? ' done' : '');
   bar.closest('.ex-card').querySelector('.ex-goal-label').textContent =
     `Objectif : ${goal} ${ex.unit}${todayValues[id] >= goal ? ' ✓' : ` — ${pct}%`}`;
 
-  // PR check live
   const prs  = computePRs();
   const pr   = prs[id] || 0;
   const badge = document.getElementById('card-' + id).querySelector('.ex-pr-badge');
@@ -469,12 +569,9 @@ document.getElementById('exercise-list').addEventListener('click', e => {
 
 // ── Enregistrer la séance ─────────────────────────────────
 document.getElementById('save-btn').addEventListener('click', () => {
-  const data = exercises.map(ex => ({
-    id: ex.id, name: ex.name, count: todayValues[ex.id] || 0
-  }));
-
+  haptic(15);
+  const data  = exercises.map(ex => ({ id: ex.id, name: ex.name, count: todayValues[ex.id] || 0 }));
   const today = todayKey();
-  // Remplace la séance du jour si elle existe déjà
   const existing = sessions.findIndex(s => s.date === today);
   const session  = { date: today, ts: Date.now(), data };
 
@@ -482,14 +579,14 @@ document.getElementById('save-btn').addEventListener('click', () => {
   else sessions.push(session);
 
   save('ft_weights_v2', sessions);
-  save('ft_sessions', sessions); // compat
+  save('ft_sessions', sessions);
 
-  // Check nouveaux PRs
-  const prs = computePRs();
+  const prs    = computePRs();
   const newPRs = data.filter(d => d.count > 0 && d.count >= (prs[d.id] || 0));
   if (newPRs.length) {
     const names = newPRs.map(d => exercises.find(e => e.id === d.id)?.name || d.name).join(', ');
     showToast(`🏆 Nouveau record : ${names} !`);
+    haptic([100, 50, 100]);
   } else {
     showToast('Séance enregistrée ✓');
   }
@@ -531,6 +628,7 @@ document.getElementById('confirm-add-ex').addEventListener('click', () => {
   closeModal('modal-add-ex');
   renderToday();
   showToast(`"${name}" ajouté !`);
+  haptic(10);
 });
 
 // ── Modifier / supprimer un exercice ─────────────────────
@@ -551,19 +649,26 @@ document.getElementById('confirm-edit-ex').addEventListener('click', () => {
 });
 
 document.getElementById('delete-ex').addEventListener('click', () => {
-  if (!confirm('Supprimer cet exercice ? (Les données historiques sont conservées)')) return;
-  exercises = exercises.filter(e => e.id !== editingExId);
-  save('ft_exercises', exercises);
   closeModal('modal-edit-ex');
-  renderToday();
-  showToast('Exercice supprimé');
+  showConfirm(
+    'Supprimer l\'exercice',
+    'Les données historiques sont conservées. Veux-tu vraiment supprimer cet exercice ?',
+    'Supprimer',
+    () => {
+      exercises = exercises.filter(e => e.id !== editingExId);
+      save('ft_exercises', exercises);
+      renderToday();
+      showToast('Exercice supprimé');
+      haptic(20);
+    }
+  );
 });
 
 // ── Historique : ouvrir le détail ─────────────────────────
 document.getElementById('history-list').addEventListener('click', e => {
   const card = e.target.closest('.history-card');
   if (!card) return;
-  const idx = parseInt(card.dataset.idx, 10);
+  const idx     = parseInt(card.dataset.idx, 10);
   const session = sessions[idx];
   if (!session) return;
   detailSessionIdx = idx;
@@ -571,7 +676,7 @@ document.getElementById('history-list').addEventListener('click', e => {
   document.getElementById('detail-title').textContent = fmtDate(session.date);
   const content = document.getElementById('detail-content');
   content.innerHTML = (session.data || []).map(d => {
-    const ex = exercises.find(e => e.id === d.id);
+    const ex   = exercises.find(e => e.id === d.id);
     const name = ex ? ex.name : d.name || d.id;
     const unit = ex ? ex.unit : 'reps';
     return `<div class="detail-row"><span class="detail-row-name">${esc(name)}</span><span class="detail-row-val">${d.count} ${unit}</span></div>`;
@@ -583,13 +688,20 @@ document.getElementById('history-list').addEventListener('click', e => {
 document.getElementById('close-detail').addEventListener('click', () => closeModal('modal-session-detail'));
 
 document.getElementById('delete-session').addEventListener('click', () => {
-  if (!confirm('Supprimer cette séance ?')) return;
-  sessions.splice(detailSessionIdx, 1);
-  save('ft_weights_v2', sessions);
-  save('ft_sessions', sessions);
   closeModal('modal-session-detail');
-  renderHistory();
-  showToast('Séance supprimée');
+  showConfirm(
+    'Supprimer la séance',
+    'Cette séance sera définitivement supprimée de l\'historique.',
+    'Supprimer',
+    () => {
+      sessions.splice(detailSessionIdx, 1);
+      save('ft_weights_v2', sessions);
+      save('ft_sessions', sessions);
+      renderHistory();
+      showToast('Séance supprimée');
+      haptic(20);
+    }
+  );
 });
 
 // ── Poids ─────────────────────────────────────────────────
@@ -603,8 +715,8 @@ document.getElementById('weight-add-btn').addEventListener('click', () => {
 document.getElementById('cancel-weight').addEventListener('click', () => closeModal('modal-weight'));
 
 document.getElementById('confirm-weight').addEventListener('click', () => {
-  const raw = document.getElementById('weight-input').value.replace(',', '.');
-  const val = parseFloat(raw);
+  const raw  = document.getElementById('weight-input').value.replace(',', '.');
+  const val  = parseFloat(raw);
   const date = document.getElementById('weight-date-input').value || todayKey();
 
   if (!val || val < 30 || val > 300) { showToast('Poids invalide (30–300 kg)'); return; }
@@ -615,11 +727,12 @@ document.getElementById('confirm-weight').addEventListener('click', () => {
   closeModal('modal-weight');
   renderWeight();
   showToast(`${val.toFixed(1)} kg enregistré ✓`);
+  haptic(10);
 });
 
 // ── Navigation ─────────────────────────────────────────────
 document.querySelectorAll('.nav-btn').forEach(btn => {
-  btn.addEventListener('click', () => showScreen(btn.dataset.screen));
+  btn.addEventListener('click', () => { haptic(6); showScreen(btn.dataset.screen); });
 });
 
 // Fermer modales en cliquant dehors
@@ -633,7 +746,6 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 prefillToday();
 renderToday();
 
-// Mise à jour de la date à minuit
 setInterval(() => {
   const now = new Date();
   if (now.getHours() === 0 && now.getMinutes() === 0) {
@@ -643,17 +755,20 @@ setInterval(() => {
 }, 60000);
 
 /* ══════════════════════════════════════════════════════════
-   PARAMÈTRES — ajout v1.1
+   PARAMÈTRES — v1.2
    ══════════════════════════════════════════════════════════ */
 
-// ── Chargement des préférences ────────────────────────────
 const prefs = load('ft_prefs') || {
   theme: 'auto',
   bgGray: false,
   accent: '#534AB7',
   userName: '',
   weeklyGoal: 5,
+  restDuration: 60,
 };
+
+// Assurer la rétrocompat si restDuration absent
+if (!prefs.restDuration) prefs.restDuration = 60;
 
 function savePrefs() { save('ft_prefs', prefs); }
 
@@ -661,21 +776,11 @@ function savePrefs() { save('ft_prefs', prefs); }
 function applyTheme() {
   const body = document.body;
   body.classList.remove('theme-light', 'theme-dark', 'bg-gray');
-
   if (prefs.theme === 'light') body.classList.add('theme-light');
   else if (prefs.theme === 'dark') body.classList.add('theme-dark');
-  // 'auto' → rien, laisse le @media faire son travail
-
   if (prefs.bgGray) body.classList.add('bg-gray');
-
-  // Couleur d'accent
   document.documentElement.style.setProperty('--accent', prefs.accent);
-
-  // Calcul accent-light dynamique (10% de la couleur sur fond)
-  document.documentElement.style.setProperty(
-    '--accent-light',
-    hexToRgba(prefs.accent, 0.12)
-  );
+  document.documentElement.style.setProperty('--accent-light', hexToRgba(prefs.accent, 0.12));
 }
 
 function hexToRgba(hex, alpha) {
@@ -685,76 +790,68 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+// ── Salutation dynamique ──────────────────────────────────
+function updateGreeting() {
+  const h    = new Date().getHours();
+  const base  = h < 12 ? 'Bonjour' : h < 18 ? 'Bon après-midi' : 'Bonsoir';
+  const emoji = h < 12 ? '👋' : h < 18 ? '💪' : '🌙';
+  const name  = prefs.userName ? ` ${prefs.userName}` : '';
+  const el    = document.getElementById('today-greeting');
+  if (el) el.textContent = `${base}${name} ${emoji}`;
+}
+
 // ── Rendu de l'écran Paramètres ───────────────────────────
 function renderSettings() {
-  // Thème
   document.querySelectorAll('.theme-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.theme === prefs.theme);
   });
-
-  // Fond gris
   const toggleBg = document.getElementById('toggle-bg');
   toggleBg.checked = prefs.bgGray;
   document.getElementById('bg-label').textContent = prefs.bgGray ? 'Gris' : 'Blanc';
-
-  // Couleur accent
   document.querySelectorAll('.color-dot').forEach(dot => {
     dot.classList.toggle('active', dot.dataset.color === prefs.accent);
   });
-
-  // Nom
-  document.getElementById('setting-name').value = prefs.userName || '';
-
-  // Objectif hebdo
+  document.getElementById('setting-name').value    = prefs.userName || '';
   document.getElementById('goal-value').textContent = prefs.weeklyGoal;
+  document.getElementById('rest-value').textContent = prefs.restDuration;
 }
 
 // ── Événements paramètres ─────────────────────────────────
 
-// Thème
 document.querySelectorAll('.theme-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     prefs.theme = btn.dataset.theme;
-    savePrefs();
-    applyTheme();
-    renderSettings();
+    savePrefs(); applyTheme(); renderSettings();
     showToast('Thème mis à jour');
   });
 });
 
-// Fond gris/blanc
 document.getElementById('toggle-bg').addEventListener('change', function() {
   prefs.bgGray = this.checked;
   document.getElementById('bg-label').textContent = this.checked ? 'Gris' : 'Blanc';
-  savePrefs();
-  applyTheme();
+  savePrefs(); applyTheme();
 });
 
-// Couleur accent
 document.getElementById('color-picker').addEventListener('click', e => {
   const dot = e.target.closest('.color-dot');
   if (!dot) return;
   prefs.accent = dot.dataset.color;
-  savePrefs();
-  applyTheme();
-  renderSettings();
+  savePrefs(); applyTheme(); renderSettings();
   showToast('Couleur mise à jour');
 });
 
-// Nom utilisateur
 document.getElementById('setting-name').addEventListener('input', function() {
   prefs.userName = this.value.trim();
   savePrefs();
+  updateGreeting();
 });
 
-// Objectif hebdo
 document.getElementById('goal-minus').addEventListener('click', () => {
   if (prefs.weeklyGoal <= 1) return;
   prefs.weeklyGoal--;
   document.getElementById('goal-value').textContent = prefs.weeklyGoal;
   savePrefs();
 });
-
 document.getElementById('goal-plus').addEventListener('click', () => {
   if (prefs.weeklyGoal >= 7) return;
   prefs.weeklyGoal++;
@@ -762,19 +859,25 @@ document.getElementById('goal-plus').addEventListener('click', () => {
   savePrefs();
 });
 
+document.getElementById('rest-minus').addEventListener('click', () => {
+  if (prefs.restDuration <= 15) return;
+  prefs.restDuration -= 15;
+  document.getElementById('rest-value').textContent = prefs.restDuration;
+  savePrefs();
+});
+document.getElementById('rest-plus').addEventListener('click', () => {
+  if (prefs.restDuration >= 300) return;
+  prefs.restDuration += 15;
+  document.getElementById('rest-value').textContent = prefs.restDuration;
+  savePrefs();
+});
+
 // Export JSON
 document.getElementById('btn-export').addEventListener('click', () => {
-  const data = {
-    version: '1.1',
-    exportDate: new Date().toISOString(),
-    exercises,
-    sessions,
-    weights,
-    prefs,
-  };
+  const data = { version: '1.2', exportDate: new Date().toISOString(), exercises, sessions, weights, prefs };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
   a.href = url;
   a.download = `fittracker-backup-${new Date().toISOString().slice(0,10)}.json`;
   a.click();
@@ -791,94 +894,63 @@ document.getElementById('btn-import').addEventListener('click', () => {
 document.getElementById('import-file-input').addEventListener('change', function() {
   const file = this.files[0];
   if (!file) return;
-
   const reader = new FileReader();
   reader.onload = function(e) {
     let data;
-    try {
-      data = JSON.parse(e.target.result);
-    } catch {
-      showToast('❌ Fichier invalide — ce n\'est pas un JSON FitTracker');
-      return;
+    try { data = JSON.parse(e.target.result); } catch {
+      showToast('❌ Fichier invalide — JSON incorrect'); return;
     }
-
-    // Validation minimale de la structure
     if (!data.exercises || !Array.isArray(data.exercises) ||
         !data.sessions  || !Array.isArray(data.sessions)  ||
         !data.weights   || !Array.isArray(data.weights)) {
-      showToast('❌ Fichier non reconnu — structure incorrecte');
-      return;
+      showToast('❌ Structure non reconnue'); return;
     }
-
-    const nbSessions = data.sessions.length;
-    const nbPesees   = data.weights.length;
-    const exportDate = data.exportDate
-      ? new Date(data.exportDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+    const nbS = data.sessions.length;
+    const nbP = data.weights.length;
+    const dateExport = data.exportDate
+      ? new Date(data.exportDate).toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' })
       : 'date inconnue';
 
-    const msg =
-      `Restaurer cette sauvegarde ?\n\n` +
-      `📅 Exportée le : ${exportDate}\n` +
-      `💪 ${nbSessions} séance${nbSessions > 1 ? 's' : ''}\n` +
-      `⚖️ ${nbPesees} pesée${nbPesees > 1 ? 's' : ''}\n\n` +
-      `⚠️ Tes données actuelles seront remplacées.`;
-
-    if (!confirm(msg)) return;
-
-    // Restauration
-    exercises = data.exercises;
-    sessions  = data.sessions;
-    weights   = data.weights;
-
-    save('ft_exercises',  exercises);
-    save('ft_weights_v2', sessions);
-    save('ft_sessions',   sessions);
-    save('ft_weights',    weights);
-
-    // Restaurer les préférences si présentes
-    if (data.prefs && typeof data.prefs === 'object') {
-      Object.assign(prefs, data.prefs);
-      savePrefs();
-      applyTheme();
-      renderSettings();
-    }
-
-    prefillToday();
-    showToast(`✅ ${nbSessions} séance${nbSessions > 1 ? 's' : ''} restaurée${nbSessions > 1 ? 's' : ''} !`);
+    showConfirm(
+      'Restaurer la sauvegarde ?',
+      `Exportée le ${dateExport}\n${nbS} séance${nbS > 1 ? 's' : ''} · ${nbP} pesée${nbP > 1 ? 's' : ''}\n\nTes données actuelles seront remplacées.`,
+      'Restaurer',
+      () => {
+        exercises = data.exercises;
+        sessions  = data.sessions;
+        weights   = data.weights;
+        save('ft_exercises',  exercises);
+        save('ft_weights_v2', sessions);
+        save('ft_sessions',   sessions);
+        save('ft_weights',    weights);
+        if (data.prefs && typeof data.prefs === 'object') {
+          Object.assign(prefs, data.prefs);
+          savePrefs(); applyTheme(); renderSettings();
+        }
+        prefillToday();
+        showToast(`✅ ${nbS} séance${nbS > 1 ? 's' : ''} restaurée${nbS > 1 ? 's' : ''} !`);
+        haptic(20);
+      },
+      false
+    );
   };
-
   reader.readAsText(file);
 });
 
 // Réinitialisation
 document.getElementById('btn-reset').addEventListener('click', () => {
-  if (!confirm('Supprimer TOUTES les données ? Cette action est irréversible.')) return;
-  if (!confirm('Dernière confirmation : effacer séances, poids et exercices ?')) return;
-  localStorage.clear();
-  showToast('Données effacées — rechargement…');
-  setTimeout(() => location.reload(), 1500);
+  showConfirm(
+    'Effacer toutes les données',
+    'Séances, pesées, exercices et préférences seront définitivement supprimés. Cette action est irréversible.',
+    'Tout effacer',
+    () => {
+      localStorage.clear();
+      showToast('Données effacées — rechargement…');
+      haptic([100, 60, 200]);
+      setTimeout(() => location.reload(), 1500);
+    }
+  );
 });
-
-// ── Patch : salutation avec prénom ────────────────────────
-const _origRenderToday = renderToday;
-// On surcharge la ligne greeting dans renderToday
-// (on réécrit juste la partie greeting après l'init)
-function updateGreeting() {
-  const h = new Date().getHours();
-  const base = h < 12 ? 'Bonjour' : h < 18 ? 'Bon après-midi' : 'Bonsoir';
-  const emoji = h < 12 ? '👋' : h < 18 ? '💪' : '🌙';
-  const name = prefs.userName ? ` ${prefs.userName}` : '';
-  const el = document.getElementById('today-greeting');
-  if (el) el.textContent = `${base}${name} ${emoji}`;
-}
-
-// ── Ajout dans showScreen pour settings ──────────────────
-const _origShowScreen = showScreen;
-showScreen = function(name) {
-  _origShowScreen(name);
-  if (name === 'settings') renderSettings();
-  if (name === 'today') updateGreeting();
-};
 
 // ── Init paramètres ───────────────────────────────────────
 applyTheme();
