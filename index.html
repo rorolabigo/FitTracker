@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#534AB7">
+  <meta name="theme-color" content="#534AB7" id="meta-theme">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="FitTracker">
@@ -22,16 +22,11 @@
     </div>
     <div class="streak-badge" id="streak-badge">🔥 0 jour</div>
   </header>
-
   <div class="scroll-area">
-    <div id="exercise-list">
-      <!-- généré par JS -->
-    </div>
-
+    <div id="exercise-list"></div>
     <button class="add-ex-btn" id="add-ex-btn">
       <span class="icon">＋</span> Ajouter un exercice
     </button>
-
     <button class="save-btn" id="save-btn">Enregistrer la séance</button>
     <div class="save-hint" id="save-hint"></div>
   </div>
@@ -42,9 +37,7 @@
   <header class="app-header">
     <div class="header-title">Historique</div>
   </header>
-  <div class="scroll-area" id="history-list">
-    <!-- généré par JS -->
-  </div>
+  <div class="scroll-area" id="history-list"></div>
 </div>
 
 <!-- ═══════════════════════════════════════════ ÉCRAN STATS ══ -->
@@ -55,10 +48,8 @@
   <div class="scroll-area">
     <div class="section-label">Records personnels</div>
     <div id="pr-grid" class="stat-grid"></div>
-
     <div class="section-label">7 derniers jours</div>
     <div id="chart-container"></div>
-
     <div class="section-label">Totaux cette semaine</div>
     <div id="weekly-totals" class="stat-grid"></div>
   </div>
@@ -71,12 +62,125 @@
   </header>
   <div class="scroll-area">
     <button class="save-btn" id="weight-add-btn">+ Enregistrer ma pesée du mois</button>
-
     <div class="section-label" style="margin-top:20px">Historique des pesées</div>
     <div id="weight-list"></div>
-
     <div class="section-label">Évolution</div>
     <div id="weight-chart"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ ÉCRAN PARAMÈTRES ══ -->
+<div id="screen-settings" class="screen">
+  <header class="app-header">
+    <div class="header-title">Paramètres</div>
+  </header>
+  <div class="scroll-area">
+
+    <!-- Apparence -->
+    <div class="section-label">Apparence</div>
+
+    <div class="settings-card">
+      <div class="setting-row" id="row-theme">
+        <div class="setting-info">
+          <div class="setting-name">Thème</div>
+          <div class="setting-desc">Clair, sombre ou automatique</div>
+        </div>
+        <div class="theme-picker">
+          <button class="theme-btn" data-theme="light">☀️ Clair</button>
+          <button class="theme-btn" data-theme="auto">Auto</button>
+          <button class="theme-btn" data-theme="dark">🌙 Sombre</button>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-name">Fond de l'app</div>
+          <div class="setting-desc">Blanc ou gris clair</div>
+        </div>
+        <div class="toggle-wrap">
+          <span class="toggle-label" id="bg-label">Blanc</span>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-bg">
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="setting-row" style="border-bottom:none">
+        <div class="setting-info">
+          <div class="setting-name">Couleur principale</div>
+          <div class="setting-desc">Couleur des boutons et accents</div>
+        </div>
+        <div class="color-picker" id="color-picker">
+          <button class="color-dot active" data-color="#534AB7" style="background:#534AB7" title="Violet"></button>
+          <button class="color-dot" data-color="#1D9E75" style="background:#1D9E75" title="Vert"></button>
+          <button class="color-dot" data-color="#D85A30" style="background:#D85A30" title="Orange"></button>
+          <button class="color-dot" data-color="#D4537E" style="background:#D4537E" title="Rose"></button>
+          <button class="color-dot" data-color="#185FA5" style="background:#185FA5" title="Bleu"></button>
+          <button class="color-dot" data-color="#444441" style="background:#444441" title="Gris"></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notifications -->
+    <div class="section-label">Séance</div>
+
+    <div class="settings-card">
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-name">Nom affiché</div>
+          <div class="setting-desc">Ton prénom dans la salutation</div>
+        </div>
+        <input type="text" id="setting-name" class="setting-input" placeholder="ex. Ronan" maxlength="20">
+      </div>
+
+      <div class="setting-row" style="border-bottom:none">
+        <div class="setting-info">
+          <div class="setting-name">Objectif hebdo</div>
+          <div class="setting-desc">Nombre de séances par semaine</div>
+        </div>
+        <div class="number-stepper">
+          <button class="stepper-btn" id="goal-minus">−</button>
+          <span id="goal-value">5</span>
+          <button class="stepper-btn" id="goal-plus">+</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Données -->
+    <div class="section-label">Données</div>
+
+    <div class="settings-card">
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-name">Exporter mes données</div>
+          <div class="setting-desc">Télécharger un fichier JSON de sauvegarde</div>
+        </div>
+        <button class="setting-action-btn" id="btn-export">Exporter</button>
+      </div>
+
+      <div class="setting-row" style="border-bottom:none">
+        <div class="setting-info">
+          <div class="setting-name" style="color:var(--red-600)">Réinitialiser</div>
+          <div class="setting-desc">Supprimer toutes les données</div>
+        </div>
+        <button class="setting-action-btn danger" id="btn-reset">Effacer</button>
+      </div>
+    </div>
+
+    <!-- À propos -->
+    <div class="section-label">À propos</div>
+    <div class="settings-card">
+      <div class="setting-row" style="border-bottom:none">
+        <div class="setting-info">
+          <div class="setting-name">FitTracker</div>
+          <div class="setting-desc">Version 1.1 · Données stockées localement</div>
+        </div>
+        <span style="font-size:24px">💪</span>
+      </div>
+    </div>
+
+    <div style="height:20px"></div>
   </div>
 </div>
 
@@ -98,11 +202,14 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
     <span>Poids</span>
   </button>
+  <button class="nav-btn" data-screen="settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    <span>Réglages</span>
+  </button>
 </nav>
 
 <!-- ═══════════════════════════════════════════ MODALES ══ -->
 
-<!-- Modale : ajouter exercice -->
 <div class="modal-overlay" id="modal-add-ex">
   <div class="modal">
     <div class="modal-title">Nouvel exercice</div>
@@ -123,7 +230,6 @@
   </div>
 </div>
 
-<!-- Modale : modifier exercice -->
 <div class="modal-overlay" id="modal-edit-ex">
   <div class="modal">
     <div class="modal-title">Modifier l'exercice</div>
@@ -139,7 +245,6 @@
   </div>
 </div>
 
-<!-- Modale : pesée -->
 <div class="modal-overlay" id="modal-weight">
   <div class="modal">
     <div class="modal-title">Nouvelle pesée</div>
@@ -154,7 +259,6 @@
   </div>
 </div>
 
-<!-- Modale : détail séance historique -->
 <div class="modal-overlay" id="modal-session-detail">
   <div class="modal">
     <div class="modal-title" id="detail-title">Séance du —</div>
@@ -166,7 +270,6 @@
   </div>
 </div>
 
-<!-- Toast -->
 <div class="toast" id="toast"></div>
 
 <script src="app.js"></script>

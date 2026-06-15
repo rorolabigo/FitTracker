@@ -684,3 +684,252 @@ html, body {
   padding: 14px;
   margin-top: 4px;
 }
+
+/* ══════════════════════════════════════════════════════════
+   PARAMÈTRES — ajout v1.1
+   ══════════════════════════════════════════════════════════ */
+
+/* Thèmes forcés (surcharge le media query auto) */
+body.theme-light {
+  --bg: #F5F5F3;
+  --surface: #FFFFFF;
+  --border: rgba(0,0,0,0.1);
+  --text: #1C1C1A;
+  --text-muted: #888780;
+  --accent-light: color-mix(in srgb, var(--accent) 12%, white);
+  --gray-50: #F5F5F3;
+  --gray-100: #E8E8E6;
+  --gray-900: #1C1C1A;
+}
+
+body.theme-dark {
+  --bg: #141414;
+  --surface: #1E1E1E;
+  --border: rgba(255,255,255,0.1);
+  --text: #F0F0EE;
+  --text-muted: #888780;
+  --accent-light: color-mix(in srgb, var(--accent) 20%, #1E1E1E);
+  --gray-50: #242424;
+  --gray-100: #2A2A2A;
+  --gray-900: #F0F0EE;
+}
+
+/* Fond gris clair (option) */
+body.bg-gray {
+  --bg: #EBEBEA;
+  --surface: #F5F5F3;
+}
+
+body.theme-dark.bg-gray {
+  --bg: #0E0E0E;
+  --surface: #181818;
+}
+
+/* ── Settings cards ───────────────────────────────────────── */
+.settings-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.setting-info { flex: 1; min-width: 0; }
+
+.setting-name {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.setting-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Theme picker ─────────────────────────────────────────── */
+.theme-picker {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.theme-btn {
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  background: var(--gray-50);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.theme-btn.active {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Toggle switch ────────────────────────────────────────── */
+.toggle-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.toggle-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  min-width: 36px;
+  text-align: right;
+}
+
+.toggle {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+.toggle input { opacity: 0; width: 0; height: 0; }
+
+.toggle-track {
+  position: absolute;
+  inset: 0;
+  background: var(--gray-200);
+  border-radius: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.toggle-track::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.toggle input:checked + .toggle-track { background: var(--accent); }
+.toggle input:checked + .toggle-track::after { transform: translateX(18px); }
+
+/* ── Color picker ─────────────────────────────────────────── */
+.color-picker {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.color-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2.5px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s;
+  outline: none;
+}
+
+.color-dot:active { transform: scale(0.88); }
+
+.color-dot.active {
+  border-color: var(--text);
+  transform: scale(1.1);
+}
+
+/* ── Setting input ────────────────────────────────────────── */
+.setting-input {
+  width: 110px;
+  padding: 8px 12px;
+  background: var(--gray-50);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  color: var(--text);
+  font-family: inherit;
+  outline: none;
+  text-align: right;
+  flex-shrink: 0;
+  transition: border-color 0.15s;
+}
+
+.setting-input:focus { border-color: var(--accent); }
+
+/* ── Number stepper ───────────────────────────────────────── */
+.number-stepper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.number-stepper span {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  min-width: 24px;
+  text-align: center;
+}
+
+.stepper-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: var(--gray-50);
+  font-size: 20px;
+  font-weight: 300;
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.stepper-btn:active { background: var(--accent-light); }
+
+/* ── Action buttons ───────────────────────────────────────── */
+.setting-action-btn {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: var(--gray-50);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.setting-action-btn:active { background: var(--gray-100); }
+
+.setting-action-btn.danger {
+  background: var(--red-50);
+  border-color: transparent;
+  color: var(--red-600);
+}

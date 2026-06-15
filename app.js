@@ -641,3 +641,177 @@ setInterval(() => {
     if (currentScreen === 'today') renderToday();
   }
 }, 60000);
+
+/* ══════════════════════════════════════════════════════════
+   PARAMÈTRES — ajout v1.1
+   ══════════════════════════════════════════════════════════ */
+
+// ── Chargement des préférences ────────────────────────────
+const prefs = load('ft_prefs') || {
+  theme: 'auto',
+  bgGray: false,
+  accent: '#534AB7',
+  userName: '',
+  weeklyGoal: 5,
+};
+
+function savePrefs() { save('ft_prefs', prefs); }
+
+// ── Appliquer le thème ────────────────────────────────────
+function applyTheme() {
+  const body = document.body;
+  body.classList.remove('theme-light', 'theme-dark', 'bg-gray');
+
+  if (prefs.theme === 'light') body.classList.add('theme-light');
+  else if (prefs.theme === 'dark') body.classList.add('theme-dark');
+  // 'auto' → rien, laisse le @media faire son travail
+
+  if (prefs.bgGray) body.classList.add('bg-gray');
+
+  // Couleur d'accent
+  document.documentElement.style.setProperty('--accent', prefs.accent);
+
+  // Calcul accent-light dynamique (10% de la couleur sur fond)
+  document.documentElement.style.setProperty(
+    '--accent-light',
+    hexToRgba(prefs.accent, 0.12)
+  );
+}
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1,3), 16);
+  const g = parseInt(hex.slice(3,5), 16);
+  const b = parseInt(hex.slice(5,7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// ── Rendu de l'écran Paramètres ───────────────────────────
+function renderSettings() {
+  // Thème
+  document.querySelectorAll('.theme-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.theme === prefs.theme);
+  });
+
+  // Fond gris
+  const toggleBg = document.getElementById('toggle-bg');
+  toggleBg.checked = prefs.bgGray;
+  document.getElementById('bg-label').textContent = prefs.bgGray ? 'Gris' : 'Blanc';
+
+  // Couleur accent
+  document.querySelectorAll('.color-dot').forEach(dot => {
+    dot.classList.toggle('active', dot.dataset.color === prefs.accent);
+  });
+
+  // Nom
+  document.getElementById('setting-name').value = prefs.userName || '';
+
+  // Objectif hebdo
+  document.getElementById('goal-value').textContent = prefs.weeklyGoal;
+}
+
+// ── Événements paramètres ─────────────────────────────────
+
+// Thème
+document.querySelectorAll('.theme-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    prefs.theme = btn.dataset.theme;
+    savePrefs();
+    applyTheme();
+    renderSettings();
+    showToast('Thème mis à jour');
+  });
+});
+
+// Fond gris/blanc
+document.getElementById('toggle-bg').addEventListener('change', function() {
+  prefs.bgGray = this.checked;
+  document.getElementById('bg-label').textContent = this.checked ? 'Gris' : 'Blanc';
+  savePrefs();
+  applyTheme();
+});
+
+// Couleur accent
+document.getElementById('color-picker').addEventListener('click', e => {
+  const dot = e.target.closest('.color-dot');
+  if (!dot) return;
+  prefs.accent = dot.dataset.color;
+  savePrefs();
+  applyTheme();
+  renderSettings();
+  showToast('Couleur mise à jour');
+});
+
+// Nom utilisateur
+document.getElementById('setting-name').addEventListener('input', function() {
+  prefs.userName = this.value.trim();
+  savePrefs();
+});
+
+// Objectif hebdo
+document.getElementById('goal-minus').addEventListener('click', () => {
+  if (prefs.weeklyGoal <= 1) return;
+  prefs.weeklyGoal--;
+  document.getElementById('goal-value').textContent = prefs.weeklyGoal;
+  savePrefs();
+});
+
+document.getElementById('goal-plus').addEventListener('click', () => {
+  if (prefs.weeklyGoal >= 7) return;
+  prefs.weeklyGoal++;
+  document.getElementById('goal-value').textContent = prefs.weeklyGoal;
+  savePrefs();
+});
+
+// Export JSON
+document.getElementById('btn-export').addEventListener('click', () => {
+  const data = {
+    version: '1.1',
+    exportDate: new Date().toISOString(),
+    exercises,
+    sessions,
+    weights,
+    prefs,
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `fittracker-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Données exportées ✓');
+});
+
+// Réinitialisation
+document.getElementById('btn-reset').addEventListener('click', () => {
+  if (!confirm('Supprimer TOUTES les données ? Cette action est irréversible.')) return;
+  if (!confirm('Dernière confirmation : effacer séances, poids et exercices ?')) return;
+  localStorage.clear();
+  showToast('Données effacées — rechargement…');
+  setTimeout(() => location.reload(), 1500);
+});
+
+// ── Patch : salutation avec prénom ────────────────────────
+const _origRenderToday = renderToday;
+// On surcharge la ligne greeting dans renderToday
+// (on réécrit juste la partie greeting après l'init)
+function updateGreeting() {
+  const h = new Date().getHours();
+  const base = h < 12 ? 'Bonjour' : h < 18 ? 'Bon après-midi' : 'Bonsoir';
+  const emoji = h < 12 ? '👋' : h < 18 ? '💪' : '🌙';
+  const name = prefs.userName ? ` ${prefs.userName}` : '';
+  const el = document.getElementById('today-greeting');
+  if (el) el.textContent = `${base}${name} ${emoji}`;
+}
+
+// ── Ajout dans showScreen pour settings ──────────────────
+const _origShowScreen = showScreen;
+showScreen = function(name) {
+  _origShowScreen(name);
+  if (name === 'settings') renderSettings();
+  if (name === 'today') updateGreeting();
+};
+
+// ── Init paramètres ───────────────────────────────────────
+applyTheme();
+updateGreeting();
