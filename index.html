@@ -20,7 +20,7 @@
       <div class="header-title" id="today-greeting">Bonjour 👋</div>
       <div class="header-sub" id="today-date">—</div>
     </div>
-    <div class="streak-badge" id="streak-badge" title="Streak en cours">🔥 0 jour</div>
+    <div class="streak-badge" id="streak-badge">🔥 0 jour</div>
   </header>
   <div class="scroll-area">
     <div id="exercise-list"></div>
@@ -52,8 +52,6 @@
     <div id="chart-container"></div>
     <div class="section-label">Totaux cette semaine</div>
     <div id="weekly-totals" class="stat-grid"></div>
-    <div class="section-label">Streaks</div>
-    <div id="streak-stats" class="stat-grid"></div>
   </div>
 </div>
 
@@ -63,7 +61,7 @@
     <div class="header-title">Poids</div>
   </header>
   <div class="scroll-area">
-    <button class="save-btn" id="weight-add-btn">+ Enregistrer une pesée</button>
+    <button class="save-btn" id="weight-add-btn">+ Enregistrer ma pesée du mois</button>
     <div class="section-label" style="margin-top:20px">Historique des pesées</div>
     <div id="weight-list"></div>
     <div class="section-label">Évolution</div>
@@ -124,7 +122,7 @@
       </div>
     </div>
 
-    <!-- Séance -->
+    <!-- Notifications -->
     <div class="section-label">Séance</div>
 
     <div class="settings-card">
@@ -136,7 +134,7 @@
         <input type="text" id="setting-name" class="setting-input" placeholder="ex. Ronan" maxlength="20">
       </div>
 
-      <div class="setting-row">
+      <div class="setting-row" style="border-bottom:none">
         <div class="setting-info">
           <div class="setting-name">Objectif hebdo</div>
           <div class="setting-desc">Nombre de séances par semaine</div>
@@ -145,18 +143,6 @@
           <button class="stepper-btn" id="goal-minus">−</button>
           <span id="goal-value">5</span>
           <button class="stepper-btn" id="goal-plus">+</button>
-        </div>
-      </div>
-
-      <div class="setting-row" style="border-bottom:none">
-        <div class="setting-info">
-          <div class="setting-name">Timer de repos</div>
-          <div class="setting-desc">Durée par défaut entre les séries</div>
-        </div>
-        <div class="number-stepper">
-          <button class="stepper-btn" id="rest-minus">−</button>
-          <span id="rest-value">60</span><span style="font-size:12px;color:var(--text-muted);margin-left:2px">s</span>
-          <button class="stepper-btn" id="rest-plus">+</button>
         </div>
       </div>
     </div>
@@ -197,7 +183,7 @@
       <div class="setting-row" style="border-bottom:none">
         <div class="setting-info">
           <div class="setting-name">FitTracker</div>
-          <div class="setting-desc">Version 1.2 · Données stockées localement</div>
+          <div class="setting-desc">Version 1.1 · Données stockées localement</div>
         </div>
         <span style="font-size:24px">💪</span>
       </div>
@@ -243,8 +229,6 @@
       <button class="unit-btn active" data-unit="reps">Répétitions</button>
       <button class="unit-btn" data-unit="sec">Secondes</button>
       <button class="unit-btn" data-unit="min">Minutes</button>
-      <button class="unit-btn" data-unit="km">Kilomètres</button>
-      <button class="unit-btn" data-unit="kcal">Calories</button>
     </div>
     <label class="field-label">Objectif quotidien</label>
     <input type="number" id="new-ex-goal" class="field-input" placeholder="ex. 50" min="1" max="9999">
@@ -293,26 +277,6 @@
       <button class="modal-btn danger" id="delete-session">Supprimer</button>
     </div>
   </div>
-</div>
-
-<!-- Modale de confirmation générique -->
-<div class="modal-overlay" id="modal-confirm">
-  <div class="modal">
-    <div class="modal-title" id="confirm-title">Confirmer</div>
-    <p id="confirm-msg" style="color:var(--text-muted);font-size:15px;line-height:1.6;margin-bottom:20px"></p>
-    <div class="modal-actions">
-      <button class="modal-btn cancel" id="confirm-cancel">Annuler</button>
-      <button class="modal-btn danger" id="confirm-ok">Confirmer</button>
-    </div>
-  </div>
-</div>
-
-<!-- Timer de repos flottant -->
-<div id="rest-timer" class="rest-timer hidden">
-  <div class="rest-timer-label">Repos</div>
-  <div class="rest-timer-count" id="rest-timer-count">60</div>
-  <div class="rest-timer-bar-wrap"><div class="rest-timer-bar" id="rest-timer-bar"></div></div>
-  <button class="rest-timer-skip" id="rest-timer-skip">Passer ✕</button>
 </div>
 
 <div class="toast" id="toast"></div>
